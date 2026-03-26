@@ -1,72 +1,108 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>ADM - MAKINA company</title>
+    <title>ADM PANEL - DUKERHUB | MAKINA Company</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
     <style>
-        :root { --primary: #007bff; --bg: #0a0a0a; --card: #161616; --text: #fff; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        :root { --primary: #007bff; --bg: #020617; --card: #0f172a; --text: #f8fafc; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 20px; }
+        
         #adminLogin { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-        .box { background: var(--card); padding: 30px; border-radius: 8px; border: 1px solid var(--primary); margin-bottom: 20px; }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; }
-        .btn { background: var(--primary); border: none; padding: 12px; cursor: pointer; color: #fff; width: 100%; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
-        th, td { padding: 10px; border-bottom: 1px solid #333; text-align: left; }
-        .log-box { background: #000; height: 150px; overflow-y: scroll; padding: 10px; font-family: monospace; color: #0f0; border: 1px solid #333; }
+        .box { background: var(--card); padding: 30px; border-radius: 12px; border: 1px solid var(--primary); width: 100%; max-width: 450px; }
+        
+        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #1e293b; border: 1px solid #334155; color: #fff; border-radius: 6px; }
+        .btn { background: var(--primary); border: none; padding: 12px; cursor: pointer; color: #fff; width: 100%; font-weight: bold; border-radius: 6px; transition: 0.3s; }
+        .btn:hover { background: #0056b3; }
+        .btn-danger { background: #ef4444; }
+
+        .container { max-width: 1200px; margin: 0 auto; display: none; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: var(--card); padding: 20px; border-radius: 10px; border-bottom: 4px solid var(--primary); text-align: center; }
+        
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; margin-top: 20px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #1e293b; }
+        th { background: #1e293b; color: var(--primary); }
+        .thumb-preview { width: 80px; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px; }
+
+        .log-box { background: #000; height: 150px; overflow-y: auto; padding: 10px; font-family: monospace; color: #38bdf8; border: 1px solid #334155; margin: 20px 0; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div id="adminLogin">
-    <div class="box" style="width:350px; text-align:center;">
-        <h2>MAKINA ADM</h2>
-        <input type="text" id="admUser" placeholder="Usuário">
+    <div class="box" style="text-align:center;">
+        <h2 style="color:var(--primary); margin-bottom:20px;">MAKINA ADM LOGIN</h2>
+        <input type="text" id="admUser" placeholder="Usuário Administrador">
         <input type="password" id="admPass" placeholder="Senha">
-        <button class="btn" onclick="checkAdm()">ENTRAR</button>
+        <button class="btn" onclick="checkAdm()">ACESSAR PAINEL</button>
     </div>
 </div>
 
-<div id="adminPanel" style="display:none; max-width: 1100px; margin: 0 auto;">
-    <header style="display:flex; justify-content:space-between; align-items:center;">
-        <h1>Painel MAKINA</h1>
-        <input type="text" id="killSwitch" placeholder="Comando de Segurança" oninput="checkDelex(this.value)" style="width:200px; border-color:red;">
+<div class="container" id="adminPanel">
+    <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+        <h1>Dashboard <span>DUKERHUB</span></h1>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <input type="text" id="killSwitch" placeholder="Comando de Segurança" oninput="checkDelex(this.value)" style="width:180px; margin:0; border-color:#ef4444;">
+            <button onclick="location.reload()" class="btn" style="width:auto; padding:10px 20px;">SAIR</button>
+        </div>
     </header>
 
+    <div class="stats-grid">
+        <div class="stat-card"><h3>Vídeos</h3><h2 id="totalVideos">0</h2></div>
+        <div class="stat-card"><h3>Membros</h3><h2 id="totalUsers">0</h2></div>
+        <div class="stat-card"><h3>Status</h3><h2 id="sysStatus" style="color:#22c55e;">ONLINE</h2></div>
+    </div>
+
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-        <div class="box">
-            <h3>Subir Vídeo (Local ou Link)</h3>
-            <input type="text" id="vTitle" placeholder="Título">
-            <select id="vCat"><option>Amador</option><option>Caseiro</option><option>Premium</option></select>
-            <input type="text" id="vUrl" placeholder="Link .mp4 (Opcional se usar arquivo)">
-            <input type="file" id="vFile" accept="video/*" style="font-size:12px;">
-            <input type="text" id="vThumb" placeholder="Link da Capa">
-            <button class="btn" onclick="handleUpload()">PUBLICAR AGORA</button>
+        <div class="box" style="max-width:100%;">
+            <h3 style="color:var(--primary)">Postar Novo Conteúdo</h3>
+            <input type="text" id="vTitle" placeholder="Título do vídeo">
+            <select id="vCat"><option>Premium</option><option>Amador</option><option>Caseiro</option></select>
+            
+            <p style="font-size:12px; margin-top:10px; color:#94a3b8;">Opção A: Upload Local (Gera Capa Auto)</p>
+            <input type="file" id="vFile" accept="video/*">
+            
+            <p style="font-size:12px; margin-top:10px; color:#94a3b8;">Opção B: Código Embed (Iframe)</p>
+            <input type="text" id="vEmbed" placeholder='Cole o <iframe> aqui'>
+            
+            <button class="btn" id="upBtn" onclick="processUpload()">PUBLICAR VÍDEO</button>
         </div>
 
-        <div class="box">
-            <h3>Alterar Acesso ADM</h3>
-            <input type="text" id="newAdmUser" placeholder="Novo Usuário">
-            <input type="password" id="newAdmPass" placeholder="Nova Senha">
-            <input type="password" id="masterKey" placeholder="Senha Mestra (delex)">
-            <button class="btn" onclick="updateAdm()" style="background:#28a745;">GUARDAR ALTERAÇÕES</button>
+        <div class="box" style="max-width:100%;">
+            <h3 style="color:var(--primary)">Configurações de Acesso</h3>
+            <input type="text" id="newAdmUser" placeholder="Novo Usuário ADM">
+            <input type="password" id="newAdmPass" placeholder="Nova Senha ADM">
+            <input type="password" id="masterKey" placeholder="Senha Mestra">
+            <button class="btn" onclick="updateAdm()" style="background:#22c55e;">ATUALIZAR CREDENCIAIS</button>
         </div>
     </div>
 
     <h3>Logs de Atividade</h3>
     <div class="log-box" id="logDisplay"></div>
 
-    <h3>Gestão de Membros</h3>
-    <table id="userTable">
-        <thead><tr><th>Email</th><th>Senha</th><th>Ação</th></tr></thead>
-        <tbody id="uBody"></tbody>
+    <h3>Gerenciar Vídeos Postados</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Capa</th>
+                <th>Título</th>
+                <th>Categoria</th>
+                <th>Tipo</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody id="vBody"></tbody>
     </table>
 
-    <footer style="margin-top:50px; text-align:center; color:var(--primary); font-weight:bold;">
-        CEO: Eng.makina
+    <footer style="margin-top:50px; text-align:center; padding:20px; border-top:1px solid #1e293b;">
+        <p style="color:var(--primary); font-weight:bold;">Eng.makina - CEO MAKINA Company</p>
     </footer>
 </div>
+
+<canvas id="thumbCanvas" style="display:none;"></canvas>
 
 <script>
     const firebaseConfig = {
@@ -79,7 +115,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Login ADM Dinâmico
     async function checkAdm() {
         const snap = await db.ref('settings/adm').once('value');
         const adm = snap.val() || { user: "m@kina", pass: "dinheirodequem" };
@@ -87,86 +122,133 @@
         if(document.getElementById('admUser').value === adm.user && document.getElementById('admPass').value === adm.pass) {
             document.getElementById('adminLogin').style.display = 'none';
             document.getElementById('adminPanel').style.display = 'block';
-            addLog("Login realizado com sucesso");
+            addLog("Acesso ao painel administrativo");
             loadData();
-        } else { alert("Acesso Negado!"); }
+        } else { alert("Credenciais Inválidas!"); }
     }
 
     function addLog(action) {
-        const time = new Date().toLocaleString('pt-BR');
+        const time = new Date().toLocaleString('pt-PT');
         db.ref('logs').push({ action, time });
     }
 
-    // Comando de Bloqueio (Killswitch)
     function checkDelex(val) {
         if(val === "delex") {
             db.ref('settings/status').set('blocked');
-            addLog("SISTEMA BLOQUEADO VIA COMANDO DELEX");
-            alert("Sinal de Bloqueio enviado!");
+            addLog("BLOQUEIO REMOTO ATIVADO (DELEX)");
+            alert("SISTEMA BLOQUEADO!");
         }
     }
 
-    // Upload Híbrido (Arquivo ou Link)
-    async function handleUpload() {
+    // --- MOTOR DE UPLOAD E THUMBNAIL AUTOMÁTICA ---
+    async function processUpload() {
         const title = document.getElementById('vTitle').value;
         const cat = document.getElementById('vCat').value;
         const file = document.getElementById('vFile').files[0];
-        let url = document.getElementById('vUrl').value;
+        const embed = document.getElementById('vEmbed').value;
+        const btn = document.getElementById('upBtn');
 
-        if(!title) return alert("Título obrigatório!");
+        if(!title || (!file && !embed)) return alert("Preencha o título e escolha um arquivo ou link!");
 
-        if(file) {
-            // Simulação de upload local (converte para Base64 para o Database)
+        btn.disabled = true; btn.innerText = "GERANDO CAPA E SUBINDO...";
+
+        let finalUrl = "";
+        let finalThumb = "https://via.placeholder.com/400x225/007bff/ffffff?text=DUKERHUB";
+        let type = embed ? "embed" : "file";
+
+        if(type === "file") {
             const reader = new FileReader();
-            reader.onload = (e) => saveToFirebase(title, cat, e.target.result);
+            reader.onload = async (e) => {
+                finalUrl = e.target.result;
+                // CAPTURA A THUMBNAIL DO VÍDEO
+                finalThumb = await generateAutoThumb(finalUrl);
+                saveToFirebase(title, cat, finalUrl, finalThumb, "file");
+            };
             reader.readAsDataURL(file);
-        } else if(url) {
-            saveToFirebase(title, cat, url);
+        } else {
+            const match = embed.match(/src="([^"]+)"/);
+            finalUrl = match ? match[1] : embed;
+            saveToFirebase(title, cat, finalUrl, finalThumb, "embed");
         }
     }
 
-    function saveToFirebase(title, cat, url) {
-        const thumb = document.getElementById('vThumb').value || "https://via.placeholder.com/400x225";
-        db.ref('videos').push({ title, cat, url, thumb }).then(() => {
-            addLog(`Vídeo postado: ${title}`);
-            alert("Sucesso!");
+    function generateAutoThumb(url) {
+        return new Promise(res => {
+            const v = document.createElement('video');
+            v.src = url; v.currentTime = 1.5; v.muted = true;
+            v.onloadeddata = () => {
+                setTimeout(() => {
+                    const canvas = document.getElementById('thumbCanvas');
+                    canvas.width = 400; canvas.height = 225;
+                    canvas.getContext('2d').drawImage(v, 0, 0, 400, 225);
+                    res(canvas.toDataURL('image/jpeg'));
+                }, 600);
+            };
+        });
+    }
+
+    function saveToFirebase(title, cat, url, thumb, type) {
+        db.ref('videos').push({ title, cat, url, thumb, type, date: Date.now() }).then(() => {
+            addLog(`Novo vídeo postado: ${title}`);
+            alert("Vídeo publicado!");
             location.reload();
         });
     }
 
-    function updateAdm() {
-        if(document.getElementById('masterKey').value !== "delex") return alert("Senha mestra incorreta!");
-        db.ref('settings/adm').set({
-            user: document.getElementById('newAdmUser').value,
-            pass: document.getElementById('newAdmPass').value
-        }).then(() => {
-            addLog("Credenciais de ADM alteradas");
-            alert("Acesso atualizado!");
-        });
-    }
-
+    // --- GESTÃO DE DADOS ---
     function loadData() {
-        db.ref('users').on('value', snap => {
-            const uBody = document.getElementById('uBody');
-            uBody.innerHTML = '';
+        // Contadores
+        db.ref('videos').on('value', snap => {
+            document.getElementById('totalVideos').innerText = snap.numChildren();
+            const body = document.getElementById('vBody');
+            body.innerHTML = '';
             snap.forEach(c => {
-                uBody.innerHTML += `<tr><td>${c.val().email}</td><td>${c.val().pass}</td><td><button onclick="ban('${c.key}', '${c.val().email}')" style="color:red">BANIR</button></td></tr>`;
+                const v = c.val();
+                body.innerHTML += `
+                    <tr>
+                        <td><img src="${v.thumb}" class="thumb-preview"></td>
+                        <td>${v.title}</td>
+                        <td>${v.cat}</td>
+                        <td><small>${v.type}</small></td>
+                        <td><button onclick="deleteVid('${c.key}', '${v.title}')" class="btn btn-danger" style="padding:5px 10px; font-size:11px;">APAGAR</button></td>
+                    </tr>`;
             });
         });
-        db.ref('logs').limitToLast(10).on('value', snap => {
+
+        db.ref('users').on('value', snap => { document.getElementById('totalUsers').innerText = snap.numChildren(); });
+        
+        db.ref('logs').limitToLast(15).on('value', snap => {
             const logDiv = document.getElementById('logDisplay');
             logDiv.innerHTML = '';
             snap.forEach(c => { logDiv.innerHTML += `[${c.val().time}] ${c.val().action}<br>`; });
             logDiv.scrollTop = logDiv.scrollHeight;
         });
+
+        db.ref('settings/status').on('value', snap => {
+            const st = document.getElementById('sysStatus');
+            if(snap.val() === 'blocked') { st.innerText = "BLOQUEADO"; st.style.color = "red"; }
+            else { st.innerText = "ONLINE"; st.style.color = "#22c55e"; }
+        });
     }
 
-    function ban(key, email) {
-        if(confirm("Banir usuário?")) {
-            db.ref('users').child(key).remove();
-            addLog(`Usuário banido: ${email}`);
+    function deleteVid(id, title) {
+        if(confirm(`Deseja apagar permanentemente: ${title}?`)) {
+            db.ref('videos').child(id).remove();
+            addLog(`Vídeo removido: ${title}`);
         }
     }
+
+    function updateAdm() {
+        const user = document.getElementById('newAdmUser').value;
+        const pass = document.getElementById('newAdmPass').value;
+        if(document.getElementById('masterKey').value !== "delex") return alert("Senha mestra INCORRETA!");
+        
+        db.ref('settings/adm').set({ user, pass }).then(() => {
+            addLog("Alteração de credenciais ADM");
+            alert("Dados de ADM atualizados!");
+        });
+    }
 </script>
+
 </body>
 </html>
