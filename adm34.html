@@ -1,0 +1,172 @@
+﻿<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>ADM - MAKINA company</title>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+    <style>
+        :root { --primary: #007bff; --bg: #0a0a0a; --card: #161616; --text: #fff; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        #adminLogin { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .box { background: var(--card); padding: 30px; border-radius: 8px; border: 1px solid var(--primary); margin-bottom: 20px; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; }
+        .btn { background: var(--primary); border: none; padding: 12px; cursor: pointer; color: #fff; width: 100%; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+        th, td { padding: 10px; border-bottom: 1px solid #333; text-align: left; }
+        .log-box { background: #000; height: 150px; overflow-y: scroll; padding: 10px; font-family: monospace; color: #0f0; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+
+<div id="adminLogin">
+    <div class="box" style="width:350px; text-align:center;">
+        <h2>MAKINA ADM</h2>
+        <input type="text" id="admUser" placeholder="Usuário">
+        <input type="password" id="admPass" placeholder="Senha">
+        <button class="btn" onclick="checkAdm()">ENTRAR</button>
+    </div>
+</div>
+
+<div id="adminPanel" style="display:none; max-width: 1100px; margin: 0 auto;">
+    <header style="display:flex; justify-content:space-between; align-items:center;">
+        <h1>Painel MAKINA</h1>
+        <input type="text" id="killSwitch" placeholder="Comando de Segurança" oninput="checkDelex(this.value)" style="width:200px; border-color:red;">
+    </header>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        <div class="box">
+            <h3>Subir Vídeo (Local ou Link)</h3>
+            <input type="text" id="vTitle" placeholder="Título">
+            <select id="vCat"><option>Amador</option><option>Caseiro</option><option>Premium</option></select>
+            <input type="text" id="vUrl" placeholder="Link .mp4 (Opcional se usar arquivo)">
+            <input type="file" id="vFile" accept="video/*" style="font-size:12px;">
+            <input type="text" id="vThumb" placeholder="Link da Capa">
+            <button class="btn" onclick="handleUpload()">PUBLICAR AGORA</button>
+        </div>
+
+        <div class="box">
+            <h3>Alterar Acesso ADM</h3>
+            <input type="text" id="newAdmUser" placeholder="Novo Usuário">
+            <input type="password" id="newAdmPass" placeholder="Nova Senha">
+            <input type="password" id="masterKey" placeholder="Senha Mestra (delex)">
+            <button class="btn" onclick="updateAdm()" style="background:#28a745;">GUARDAR ALTERAÇÕES</button>
+        </div>
+    </div>
+
+    <h3>Logs de Atividade</h3>
+    <div class="log-box" id="logDisplay"></div>
+
+    <h3>Gestão de Membros</h3>
+    <table id="userTable">
+        <thead><tr><th>Email</th><th>Senha</th><th>Ação</th></tr></thead>
+        <tbody id="uBody"></tbody>
+    </table>
+
+    <footer style="margin-top:50px; text-align:center; color:var(--primary); font-weight:bold;">
+        CEO: Eng.makina
+    </footer>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBMlbl1DznEPxf1eOSsKRE2wHk5Jpw-2bc",
+        authDomain: "makina-company.firebaseapp.com",
+        databaseURL: "https://makina-company-default-rtdb.firebaseio.com",
+        projectId: "makina-company",
+        appId: "1:61683505551:web:5459aa3efb863c5388d3fa"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Login ADM Dinâmico
+    async function checkAdm() {
+        const snap = await db.ref('settings/adm').once('value');
+        const adm = snap.val() || { user: "m@kina", pass: "dinheirodequem" };
+        
+        if(document.getElementById('admUser').value === adm.user && document.getElementById('admPass').value === adm.pass) {
+            document.getElementById('adminLogin').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            addLog("Login realizado com sucesso");
+            loadData();
+        } else { alert("Acesso Negado!"); }
+    }
+
+    function addLog(action) {
+        const time = new Date().toLocaleString('pt-BR');
+        db.ref('logs').push({ action, time });
+    }
+
+    // Comando de Bloqueio (Killswitch)
+    function checkDelex(val) {
+        if(val === "delex") {
+            db.ref('settings/status').set('blocked');
+            addLog("SISTEMA BLOQUEADO VIA COMANDO DELEX");
+            alert("Sinal de Bloqueio enviado!");
+        }
+    }
+
+    // Upload Híbrido (Arquivo ou Link)
+    async function handleUpload() {
+        const title = document.getElementById('vTitle').value;
+        const cat = document.getElementById('vCat').value;
+        const file = document.getElementById('vFile').files[0];
+        let url = document.getElementById('vUrl').value;
+
+        if(!title) return alert("Título obrigatório!");
+
+        if(file) {
+            // Simulação de upload local (converte para Base64 para o Database)
+            const reader = new FileReader();
+            reader.onload = (e) => saveToFirebase(title, cat, e.target.result);
+            reader.readAsDataURL(file);
+        } else if(url) {
+            saveToFirebase(title, cat, url);
+        }
+    }
+
+    function saveToFirebase(title, cat, url) {
+        const thumb = document.getElementById('vThumb').value || "https://via.placeholder.com/400x225";
+        db.ref('videos').push({ title, cat, url, thumb }).then(() => {
+            addLog(`Vídeo postado: ${title}`);
+            alert("Sucesso!");
+            location.reload();
+        });
+    }
+
+    function updateAdm() {
+        if(document.getElementById('masterKey').value !== "delex") return alert("Senha mestra incorreta!");
+        db.ref('settings/adm').set({
+            user: document.getElementById('newAdmUser').value,
+            pass: document.getElementById('newAdmPass').value
+        }).then(() => {
+            addLog("Credenciais de ADM alteradas");
+            alert("Acesso atualizado!");
+        });
+    }
+
+    function loadData() {
+        db.ref('users').on('value', snap => {
+            const uBody = document.getElementById('uBody');
+            uBody.innerHTML = '';
+            snap.forEach(c => {
+                uBody.innerHTML += `<tr><td>${c.val().email}</td><td>${c.val().pass}</td><td><button onclick="ban('${c.key}', '${c.val().email}')" style="color:red">BANIR</button></td></tr>`;
+            });
+        });
+        db.ref('logs').limitToLast(10).on('value', snap => {
+            const logDiv = document.getElementById('logDisplay');
+            logDiv.innerHTML = '';
+            snap.forEach(c => { logDiv.innerHTML += `[${c.val().time}] ${c.val().action}<br>`; });
+            logDiv.scrollTop = logDiv.scrollHeight;
+        });
+    }
+
+    function ban(key, email) {
+        if(confirm("Banir usuário?")) {
+            db.ref('users').child(key).remove();
+            addLog(`Usuário banido: ${email}`);
+        }
+    }
+</script>
+</body>
+</html>
